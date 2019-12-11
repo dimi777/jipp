@@ -3,35 +3,26 @@
 #include <unistd.h>
 #include <wait.h>
 
-
-int main()
-{
-	int id, main_process_id;
-
+int main(){
+	char cmd[20];
+	int i, pid = getpid();
 	fprintf(stdout," UID| GID|  PID| PPID|MESSAGE\n");
 	fprintf(stdout,"%d|%d|%d|%d|Main process\n", getuid(), getgid(), getpid(), getppid());
-	main_process_id = getpid();
-	for(int k = 0; k < 3; k++) {
-		id = fork();
+	sprintf(cmd,"pstree -p %i",getpid());
+	for(i = 0; i < 3; i++){
+		switch(fork()){
+			case -1:
+				perror("Fork error.");
+				exit(1);
+			case 0:
+				//execl("./print_process_info", "im a child process", NULL);
+				fprintf(stdout,"%d|%d|%d|%d|child i = %d\n",getuid(), getgid(), getpid(), getppid(), i);
+				break;
+		}
 	}
-
-	switch (id) { 
-		case -1:
-			perror("fork error");
-			exit(0);
-		case 0:
-			execl("./print_process_info", "im a child process", NULL);
-			//fprintf(stdout,"%d|%d|%d|%d|child\n",getuid(), getgid(), getpid(), getppid());
-			//break;
-		default:
-			fprintf(stdout,"%d|%d|%d|%d|im parent of %d\n", getuid(), getgid(), getpid(), getppid(), id);
-			char pid[20];
-			sprintf(pid, "pstree -p -c %d", getpid());
-			system(pid);
-			wait(NULL);
+	if(pid == getpid()) {
+		system(cmd);
 	}
-
-	//fprintf(stdout,"%d|%d|%d|%d|exit\n", getuid(), getgid(), getpid(), getppid());
-	exit(1);
+	sleep(1);
+	exit(0);
 }
-
