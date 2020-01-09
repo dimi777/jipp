@@ -1,0 +1,8 @@
+Sekcja t21 procesu o PID=6557
+Sekcja t31 procesu o PID=6558
+Sekcja t32 procesu o PID=6558
+Sekcja t22 procesu o PID=6557
+Sekcja t11 procesu o PID=6556
+Sekcja t12 procesu o PID=6556
+Sekcja t23 procesu o PID=6557
+Sekcja t33 procesu o PID=6558
