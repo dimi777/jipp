@@ -15,9 +15,10 @@ int main(){
 				perror("Fork error.");
 				exit(1);
 			case 0:
-				//execl("./print_process_info", "im a child process", NULL);
-				fprintf(stdout,"%d|%d|%d|%d|child i = %d\n",getuid(), getgid(), getpid(), getppid(), i);
-				break;
+				fprintf(stdout,"i = %d\n",i);
+				execl("./print_process_info", "im a child process", NULL);
+				//fprintf(stdout,"%d|%d|%d|%d|child i = %d\n",getuid(), getgid(), getpid(), getppid(), i);
+				//break;
 		}
 	}
 	if(pid == getpid()) {
