@@ -13,182 +13,89 @@
 #include <fcntl.h>
 #include "shared_mutex.h"
 
+shared_mutex_t mutex[4];
+pthread_cond_t *cond[4];
 
-#define MYCOND "/sdsfsdf0"
-#define MYCOND1 "/sdsfsdf1"
-#define MYCOND2 "/sdsfsdf2"
-#define MYCOND3 "/sdsfsdf3"
-
-shared_mutex_t mutex;
-shared_mutex_t mutex1;
-shared_mutex_t mutex2;
-shared_mutex_t mutex3;
+int cond_id[4];
 
 int i, w, x;
 pid_t pid;
 int children_ids[3];
 char cmd[50], children[3][5] = {"p1", "p2", "p3"};
-int mode = 0600;
+int mode = S_IRWXU | S_IRWXG;
 
-void checkFile();
+void checkFile()
+{
+    FILE *fp = fopen("spr1.txt", "w");
+    if (fp == NULL)
+    {
+        printf("couldn't open file. exiting...");
+        exit(5);
+    }
+    fclose(fp);
+}
 
 int createMutex()
 {
-    mutex = shared_mutex_init("/scip5", 0600);
-    if (mutex.ptr == NULL)
+    for (i = 0; i < 4; i++)
     {
-        return -1;
+        char *mutex_name;
+        sprintf(mutex_name, "/mutex%d", i);
+
+        mutex[i] = shared_mutex_init("/testmutex0", mode);
+        exit(0);
+        if (mutex[i].ptr == NULL)
+        {
+            return -1;
+        }
+        if (mutex[i].created)
+        {
+            printf("The mutex with name \"/mutex%d\" was created\n", i);
+        }
     }
-    if (mutex.created)
+    return 0;
+}
+
+int createCond()
+{
+    for (i = 0; i < 4; i++)
     {
-        printf("The mutex with name \"/b%d\" was created\n", 0);
+        char *cond_name;
+        sprintf(cond_name, "/cond%d", i);
+        cond_id[i] = shm_open(cond_name, O_CREAT | O_RDWR | O_TRUNC, mode);
+        if (cond_id[i] < 0)
+        {
+            return -1;
+        }
+        if (ftruncate(cond_id[i], sizeof(pthread_cond_t)) == -1)
+        {
+            return -1;
+        }
+        cond[i] = (pthread_cond_t *)mmap(NULL, sizeof(pthread_cond_t), PROT_READ | PROT_WRITE, MAP_SHARED, cond_id[i], 0);
+        if (cond[i] == MAP_FAILED)
+        {
+            return -1;
+        }
+        /* set condition shared between processes */
+        pthread_condattr_t cattr;
+        pthread_condattr_setpshared(&cattr, PTHREAD_PROCESS_SHARED);
+        pthread_cond_init(cond[i], &cattr);
+        pthread_condattr_destroy(&cattr);
     }
-    /************************************************************** */
-    mutex1 = shared_mutex_init("/scip6", 0600);
-    if (mutex1.ptr == NULL)
-    {
-        return -1;
-    }
-    if (mutex1.created)
-    {
-        printf("The mutex with name \"/b%d\" was created\n", 1);
-    }
-    /*********************************************************** */
-     mutex2 = shared_mutex_init("/scip7", 0600);
-    if (mutex2.ptr == NULL)
-    {
-        return -1;
-    }
-    if (mutex2.created)
-    {
-        printf("The mutex with name \"/b%d\" was created\n", 2);
-    }
-    /*********************************************************** */
-     mutex3 = shared_mutex_init("/scip8", 0600);
-    if (mutex3.ptr == NULL)
-    {
-        return -1;
-    }
-    if (mutex3.created)
-    {
-        printf("The mutex with name \"/b%d\" was created\n", 3);
-    }
-    /*********************************************************** */
 }
 
 int main(int argc, char *argv[])
 {
-    char mutex_name[9], cond_name[9];
     checkFile();
     createMutex();
+
     if (createMutex())
     {
         printf("fail");
         return -1;
     }
-    /* mutex */
-    pthread_cond_t *cond;
-    pthread_cond_t *cond1;
-    pthread_cond_t *cond2;
-    pthread_cond_t *cond3;
-    int cond_id, mutex_id;
-    int cond_id1, cond_id2, cond_id3;
-    int mode = S_IRWXU | S_IRWXG;
+    createCond();
 
-    /* cond */
-    cond_id = shm_open(MYCOND, O_CREAT | O_RDWR | O_TRUNC, mode);
-    if (cond_id < 0)
-    {
-        perror("shm_open failed with " MYCOND);
-        return -1;
-    }
-    if (ftruncate(cond_id, sizeof(pthread_cond_t)) == -1)
-    {
-        perror("ftruncate failed with " MYCOND);
-        return -1;
-    }
-    cond = (pthread_cond_t *)mmap(NULL, sizeof(pthread_cond_t), PROT_READ | PROT_WRITE, MAP_SHARED, cond_id, 0);
-    if (cond == MAP_FAILED)
-    {
-        perror("ftruncate failed with " MYCOND);
-        return -1;
-    }
-    /* set condition shared between processes */
-    pthread_condattr_t cattr;
-    pthread_condattr_setpshared(&cattr, PTHREAD_PROCESS_SHARED);
-    pthread_cond_init(cond, &cattr);
-    pthread_condattr_destroy(&cattr);
-    /***************************COND 1*************************************** */
-    cond_id1 = shm_open(MYCOND1, O_CREAT | O_RDWR | O_TRUNC, mode);
-    if (cond_id1 < 0)
-    {
-        perror("shm_open failed with " MYCOND1);
-        return -1;
-    }
-    if (ftruncate(cond_id1, sizeof(pthread_cond_t)) == -1)
-    {
-        perror("ftruncate failed with " MYCOND1);
-        return -1;
-    }
-    cond1 = (pthread_cond_t *)mmap(NULL, sizeof(pthread_cond_t), PROT_READ | PROT_WRITE, MAP_SHARED, cond_id1, 0);
-    if (cond1 == MAP_FAILED)
-    {
-        perror("ftruncate failed with " MYCOND1);
-        return -1;
-    }
-    /* set condition shared between processes */
-    pthread_condattr_t cattr1;
-    pthread_condattr_setpshared(&cattr1, PTHREAD_PROCESS_SHARED);
-    pthread_cond_init(cond, &cattr1);
-    pthread_condattr_destroy(&cattr1);
-    /*************************************/
-      /***************************COND 2*************************************** */
-    cond_id2 = shm_open(MYCOND2, O_CREAT | O_RDWR | O_TRUNC, mode);
-    if (cond_id2 < 0)
-    {
-        perror("shm_open failed with " MYCOND2);
-        return -1;
-    }
-    if (ftruncate(cond_id2, sizeof(pthread_cond_t)) == -1)
-    {
-        perror("ftruncate failed with " MYCOND2);
-        return -1;
-    }
-    cond2 = (pthread_cond_t *)mmap(NULL, sizeof(pthread_cond_t), PROT_READ | PROT_WRITE, MAP_SHARED, cond_id2, 0);
-    if (cond2 == MAP_FAILED)
-    {
-        perror("ftruncate failed with " MYCOND2);
-        return -1;
-    }
-    /* set condition shared between processes */
-    pthread_condattr_t cattr2;
-    pthread_condattr_setpshared(&cattr2, PTHREAD_PROCESS_SHARED);
-    pthread_cond_init(cond, &cattr2);
-    pthread_condattr_destroy(&cattr2);
-    /*************************************/
-      /***************************COND 3*************************************** */
-    cond_id3 = shm_open(MYCOND3, O_CREAT | O_RDWR | O_TRUNC, mode);
-    if (cond_id3 < 0)
-    {
-        perror("shm_open failed with " MYCOND3);
-        return -1;
-    }
-    if (ftruncate(cond_id3, sizeof(pthread_cond_t)) == -1)
-    {
-        perror("ftruncate failed with " MYCOND3);
-        return -1;
-    }
-    cond3 = (pthread_cond_t *)mmap(NULL, sizeof(pthread_cond_t), PROT_READ | PROT_WRITE, MAP_SHARED, cond_id3, 0);
-    if (cond3 == MAP_FAILED)
-    {
-        perror("ftruncate failed with " MYCOND3);
-        return -1;
-    }
-    /* set condition shared between processes */
-    pthread_condattr_t cattr3;
-    pthread_condattr_setpshared(&cattr3, PTHREAD_PROCESS_SHARED);
-    pthread_cond_init(cond, &cattr3);
-    pthread_condattr_destroy(&cattr3);
     /*************************************/
     for (i = 0; i < 3; i++)
     {
@@ -228,22 +135,10 @@ int main(int argc, char *argv[])
         }
     }
 
-
-    shared_mutex_destroy(mutex);
-    shared_mutex_destroy(mutex1);
-    shared_mutex_destroy(mutex2);
-    shared_mutex_destroy(mutex3);
+    for (i = 0; i < 4; i++)
+    {
+        shared_mutex_destroy(mutex[i]);
+    }
 
     return 0;
-}
-
-void checkFile()
-{
-    FILE *fp = fopen("spr1.txt", "w");
-    if (fp == NULL)
-    {
-        printf("couldn't open file. exiting...");
-        exit(5);
-    }
-    fclose(fp);
 }
